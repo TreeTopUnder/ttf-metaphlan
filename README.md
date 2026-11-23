@@ -93,19 +93,20 @@ nextflow run . \
   -profile docker
 ```
 
-AWS Batch with S3 work and output directories:
+AWS Batch (TreeTopFlow controllers pass the worker config with `-c`; do not require `--aws_queue`):
 
 ```bash
 nextflow run . \
   -profile awsbatch \
-  --aws_queue <queue> \
-  --aws_region us-east-1 \
+  -c /path/to/worker/awsbatch.config \
   -work-dir s3://bucket/work \
   --input samplesheet.csv \
   --outdir s3://bucket/results \
   --metaphlan_db s3://bucket/refs/mpa_vJun23_CHOCOPhlAnSGB_202403 \
   --host_index s3://bucket/refs/GRCh38_noalt_as
 ```
+
+Optional CLI overrides (`--aws_queue`, `--aws_region`, `--aws_cli_path`) are applied only when set, so they do not clobber the worker `-c` file.
 
 Stub-run (DAG compile, no containers required):
 
