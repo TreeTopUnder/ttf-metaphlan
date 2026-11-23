@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "fastp 0.24.0"
+exit 0

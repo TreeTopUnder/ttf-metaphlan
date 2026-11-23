@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  scripts:
+    name: Script unit tests and schema validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: pip install jsonschema
+      - name: Run helper-script tests
+        run: python tests/test_scripts.py
+
+  stub-run:
+    name: Nextflow stub-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nf-core/setup-nextflow@v2
+        with:
+          version: "24.10.4"
+      - name: Stub-run with host removal
+        run: nextflow run . -profile test -stub-run --outdir results_host
+      - name: Stub-run skipping host removal
+        run: nextflow run . -profile test -stub-run --skip_host_removal true --outdir results_nohost
+      - name: Confirm expected stub outputs
+        run: |
+          test -f results_host/pipeline_info/software_versions.yml
+          test -f results_host/qc/fastp/sample1.fastp.json
+          test -f results_host/qc/fastp/sample1.fastp.html
+          test -f results_host/host_removal/sample1.bowtie2.log
+          test -f results_host/metaphlan/sample1_profile.txt
+          test -f results_host/metaphlan/sample1.biom
+          test -f results_host/metaphlan/merged_abundance_table.tsv
+          test -f results_host/metaphlan/merged_species_table.tsv
+          test -f results_host/metaphlan/merged_sgb_table.tsv
+          test -f results_host/phyloseq/metaphlan_phyloseq.rds
+          test -f results_host/krona/sample1.krona.html
+          test -f results_host/krona/krona_combined.html
+          test -f results_host/multiqc/multiqc_report.html
+          test -d results_host/multiqc/multiqc_data
+          test ! -e results_nohost/host_removal/sample1.bowtie2.log
+          test ! -f results_nohost/host_removal/host_removal_summary.tsv
+          test -f results_nohost/metaphlan/sample1_profile.txt
+          test -f results_nohost/pipeline_info/software_versions.yml

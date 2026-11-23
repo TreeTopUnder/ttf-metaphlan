@@ -1,0 +1,19 @@
+report_comment: >
+  TreeTopFlow ttf-metaphlan (MetaPhlAn 4) MultiQC report.
+  Research use only. Not for clinical or diagnostic use.
+report_section_order:
+  software_versions:
+    order: -1000
+  ttf-metaphlan-summary:
+    order: -1100
+export_plots: true
+disable_version_detection: false
+extra_fn_clean_exts:
+  - .fastp
+  - .bowtie2
+  - _profile
+  - .unmapped
+run_modules:
+  - fastp
+  - bowtie2
+  - custom_content

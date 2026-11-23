@@ -1,0 +1,9 @@
+.nextflow*
+work/
+results*/
+*.html.bak
+.DS_Store
+*.pyc
+__pycache__/
+.ttf_stub_bin/
+.pytest_cache/
