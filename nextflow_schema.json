@@ -44,22 +44,22 @@
             "title": "Reference databases",
             "type": "object",
             "fa_icon": "fas fa-database",
-            "description": "MetaPhlAn 4 and host-removal Bowtie2 indexes. Defaults on refdb.treetopunder.com will be wired once uploaded.",
+            "description": "MetaPhlAn 4 and host-removal Bowtie2 indexes. Defaults are unpacked S3 prefixes mirrored at refdb.treetopunder.com.",
             "properties": {
                 "metaphlan_db": {
                     "type": "string",
                     "format": "path",
-                    "default": null,
-                    "description": "MetaPhlAn 4 database directory or .tar/.tar.gz archive (target index mpa_vJun23_CHOCOPhlAnSGB_202403). Default on refdb.treetopunder.com will be wired once uploaded.",
-                    "help_text": "Provide an unpacked directory containing MetaPhlAn Bowtie2 index files, or a tar/tar.gz archive that will be unpacked with nf-core/untar.",
+                    "default": "s3://codonyat/refdb/public/metaphlan4/mpa_vJun23_CHOCOPhlAnSGB_202403",
+                    "description": "MetaPhlAn 4 database directory or .tar/.tar.gz archive. Default is the unpacked mpa_vJun23_CHOCOPhlAnSGB_202403 prefix (pkl, .bt2l, .nwk). HTTPS mirror: https://refdb.treetopunder.com/metaphlan4/mpa_vJun23_CHOCOPhlAnSGB_202403/",
+                    "help_text": "Pass an unpacked directory (local, s3://, with or without a trailing slash) or a tar/tar.gz archive unpacked with nf-core/untar. The default S3 prefix is a flat unpacked index; an SGB .nwk tree in that directory is attached as phyloseq phy_tree.",
                     "fa_icon": "fas fa-database"
                 },
                 "host_index": {
                     "type": "string",
                     "format": "path",
-                    "default": null,
-                    "description": "Host Bowtie2 index directory or .tar/.tar.gz archive (GRCh38_noalt_as). Required unless --skip_host_removal. Default on refdb.treetopunder.com will be wired once uploaded.",
-                    "help_text": "Directory of *.bt2/*.bt2l files, or a tar/tar.gz archive unpacked with nf-core/untar. Host-aligned BAM/reads are never published.",
+                    "default": "s3://codonyat/refdb/public/host/GRCh38_noalt_as",
+                    "description": "Host Bowtie2 index directory or .tar/.tar.gz archive. Default is the unpacked GRCh38_noalt_as prefix (*.bt2). HTTPS mirror: https://refdb.treetopunder.com/host/GRCh38_noalt_as/. Required unless --skip_host_removal.",
+                    "help_text": "Pass an unpacked directory of *.bt2/*.bt2l files (local or s3://, trailing slash optional) or a tar/tar.gz archive unpacked with nf-core/untar. Host-aligned BAM/reads are never published.",
                     "fa_icon": "fas fa-user-slash"
                 },
                 "skip_host_removal": {

@@ -12,11 +12,8 @@ include { METAPHLAN_TO_KRONA } from '../modules/local/metaphlan_to_krona/main'
 include { BUILD_PHYLOSEQ } from '../modules/local/build_phyloseq/main'
 
 def isArchivePath(path) {
-    if (!path) {
-        return false
-    }
-    def name = file(path).name.toLowerCase()
-    return name.endsWith('.tar.gz') || name.endsWith('.tgz') || name.endsWith('.tar')
+    // Unpacked dirs (local or s3://, trailing slash optional) skip UNTAR.
+    return RefPaths.isArchive(path)
 }
 
 workflow TTF_METAPHLAN {

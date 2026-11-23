@@ -209,6 +209,31 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(props["min_read_len"]["default"], 70)
         self.assertFalse(props["skip_host_removal"]["default"])
         self.assertTrue(props["unclassified_estimation"]["default"])
+        self.assertEqual(
+            props["metaphlan_db"]["default"],
+            "s3://codonyat/refdb/public/metaphlan4/mpa_vJun23_CHOCOPhlAnSGB_202403",
+        )
+        self.assertEqual(
+            props["host_index"]["default"],
+            "s3://codonyat/refdb/public/host/GRCh38_noalt_as",
+        )
+        self.assertIn("refdb.treetopunder.com", props["metaphlan_db"]["description"])
+        self.assertIn("refdb.treetopunder.com", props["host_index"]["description"])
+        self.assertNotIn("pending", json.dumps(props["metaphlan_db"]).lower())
+        self.assertNotIn("pending", json.dumps(props["host_index"]).lower())
+
+    def test_nextflow_config_s3_defaults_and_offline_test_profile(self) -> None:
+        config = (ROOT / "nextflow.config").read_text()
+        self.assertIn(
+            "s3://codonyat/refdb/public/metaphlan4/mpa_vJun23_CHOCOPhlAnSGB_202403",
+            config,
+        )
+        self.assertIn("s3://codonyat/refdb/public/host/GRCh38_noalt_as", config)
+        self.assertNotIn("will be wired once uploaded", config)
+        test_config = (ROOT / "conf" / "test.config").read_text()
+        self.assertIn("tests/fixtures/metaphlan_db", test_config)
+        self.assertIn("tests/fixtures/host_index", test_config)
+        self.assertNotIn("s3://codonyat", test_config)
 
 
 if __name__ == "__main__":

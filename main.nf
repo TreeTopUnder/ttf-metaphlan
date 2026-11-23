@@ -18,8 +18,8 @@ def helpMessage() {
 
         Optional:
           --metadata          Sample metadata TSV (first column ID or sample)
-          --metaphlan_db      MetaPhlAn 4 database directory or .tar/.tar.gz
-          --host_index        Host Bowtie2 index directory or .tar/.tar.gz
+          --metaphlan_db      MetaPhlAn 4 DB dir or .tar/.tar.gz (default: s3://codonyat/refdb/public/metaphlan4/mpa_vJun23_CHOCOPhlAnSGB_202403)
+          --host_index        Host Bowtie2 index dir or .tar/.tar.gz (default: s3://codonyat/refdb/public/host/GRCh38_noalt_as)
           --skip_host_removal Skip host read removal (default: false)
           --analysis_type     rel_ab_w_read_stats | rel_ab
           --add_viruses       Include viral clades (default: false)
@@ -32,8 +32,16 @@ def helpMessage() {
 }
 
 def isArchive(path) {
-    def name = path.toString().toLowerCase()
-    return name.endsWith('.tar.gz') || name.endsWith('.tgz') || name.endsWith('.tar')
+    return RefPaths.isArchive(path)
+}
+
+def asRefFile(path) {
+    def value = RefPaths.normalize(path)
+    if (!value) {
+        return null
+    }
+    // Unpacked dirs (local or s3://, trailing slash optional) stage as directories.
+    return isArchive(value) ? file(value) : file(value, type: 'dir')
 }
 
 def resolveInputPath(raw) {
@@ -88,10 +96,10 @@ workflow {
         error "Missing required parameter --outdir"
     }
     if (!params.metaphlan_db) {
-        error "Missing required parameter --metaphlan_db (refdb.treetopunder.com default will be wired once uploaded)"
+        error "Missing required parameter --metaphlan_db"
     }
     if (!params.skip_host_removal && !params.host_index) {
-        error "Missing required parameter --host_index (required unless --skip_host_removal; refdb.treetopunder.com default will be wired once uploaded)"
+        error "Missing required parameter --host_index (required unless --skip_host_removal)"
     }
     if (!(params.analysis_type in ['rel_ab_w_read_stats', 'rel_ab'])) {
         error "Parameter --analysis_type must be one of: rel_ab_w_read_stats, rel_ab"
@@ -104,13 +112,13 @@ workflow {
 
     ch_metadata = params.metadata ? Channel.value(file(params.metadata, checkIfExists: true)) : Channel.value([])
 
-    def metaphlan_db_file = file(params.metaphlan_db)
-    ch_metaphlan_db_archive = isArchive(metaphlan_db_file) ? Channel.of([[id: 'metaphlan_db'], metaphlan_db_file]) : Channel.empty()
-    ch_metaphlan_db_dir     = isArchive(metaphlan_db_file) ? Channel.empty() : Channel.value(metaphlan_db_file)
+    def metaphlan_db_file = asRefFile(params.metaphlan_db)
+    ch_metaphlan_db_archive = isArchive(params.metaphlan_db) ? Channel.of([[id: 'metaphlan_db'], metaphlan_db_file]) : Channel.empty()
+    ch_metaphlan_db_dir     = isArchive(params.metaphlan_db) ? Channel.empty() : Channel.value(metaphlan_db_file)
 
-    def host_index_file = params.host_index ? file(params.host_index) : null
-    ch_host_index_archive = (!params.skip_host_removal && host_index_file && isArchive(host_index_file)) ? Channel.of([[id: 'host_index'], host_index_file]) : Channel.empty()
-    ch_host_index_dir     = (!params.skip_host_removal && host_index_file && !isArchive(host_index_file)) ? Channel.value([[id: 'host_index'], host_index_file]) : Channel.empty()
+    def host_index_file = params.host_index ? asRefFile(params.host_index) : null
+    ch_host_index_archive = (!params.skip_host_removal && host_index_file && isArchive(params.host_index)) ? Channel.of([[id: 'host_index'], host_index_file]) : Channel.empty()
+    ch_host_index_dir     = (!params.skip_host_removal && host_index_file && !isArchive(params.host_index)) ? Channel.value([[id: 'host_index'], host_index_file]) : Channel.empty()
 
     TTF_METAPHLAN(
         ch_input,

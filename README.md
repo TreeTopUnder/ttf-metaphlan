@@ -35,8 +35,8 @@ SAMPLE_SE	treatment	1
 | `--input` | required | Samplesheet CSV |
 | `--outdir` | required | Output directory (local or `s3://`) |
 | `--metadata` | `null` | Optional sample metadata TSV |
-| `--metaphlan_db` | `null` | MetaPhlAn 4 DB directory or `.tar`/`.tar.gz`. Default on `refdb.treetopunder.com` will be wired once uploaded. |
-| `--host_index` | `null` | Host Bowtie2 index directory or `.tar`/`.tar.gz`. Required unless `--skip_host_removal`. Default on `refdb.treetopunder.com` will be wired once uploaded. |
+| `--metaphlan_db` | `s3://codonyat/refdb/public/metaphlan4/mpa_vJun23_CHOCOPhlAnSGB_202403` | Unpacked MetaPhlAn 4 CHOCOPhlAnSGB directory (or `.tar`/`.tar.gz`). HTTPS: `https://refdb.treetopunder.com/metaphlan4/mpa_vJun23_CHOCOPhlAnSGB_202403/` |
+| `--host_index` | `s3://codonyat/refdb/public/host/GRCh38_noalt_as` | Unpacked GRCh38_noalt_as Bowtie2 directory (or `.tar`/`.tar.gz`). Required unless `--skip_host_removal`. HTTPS: `https://refdb.treetopunder.com/host/GRCh38_noalt_as/` |
 | `--skip_host_removal` | `false` | Skip Bowtie2 host removal |
 | `--analysis_type` | `rel_ab_w_read_stats` | MetaPhlAn `-t` (`rel_ab_w_read_stats` or `rel_ab`) |
 | `--add_viruses` | `false` | Pass `--add_viruses` |
@@ -45,7 +45,7 @@ SAMPLE_SE	treatment	1
 | `--skip_krona` | `false` | Skip Krona plots |
 | `--skip_phyloseq` | `false` | Skip phyloseq RDS |
 
-Host indexes and MetaPhlAn databases may be an unpacked directory or a `.tar` / `.tar.gz` archive (unpacked with `nf-core/untar`).
+Host indexes and MetaPhlAn databases may be an unpacked directory (local or `s3://`, trailing slash optional) or a `.tar` / `.tar.gz` archive (unpacked with `nf-core/untar`). Unpacked directories skip `UNTAR` and are staged as directory channels so MetaPhlAn, Bowtie2, and phyloseq see the index files (including `*.nwk` for `phy_tree`).
 
 ## Outputs
 
@@ -74,12 +74,12 @@ Host-aligned BAMs and host reads are **never** published. Only unmapped reads co
 
 ## Reference databases
 
-| Resource | Target | Notes |
-|---|---|---|
-| MetaPhlAn 4 | `mpa_vJun23_CHOCOPhlAnSGB_202403` | CHOCOPhlAnSGB index used by MetaPhlAn 4.1.1 |
-| Host genome | `GRCh38_noalt_as` | Bowtie2 index for human host removal |
+Defaults are unpacked prefixes on S3 (`s3://codonyat/refdb/public/...`), MD5-verified and mirrored at `https://refdb.treetopunder.com`. Override with `--metaphlan_db` / `--host_index` for a local copy or a `.tar`/`.tar.gz` archive. `-profile test` points both params at `tests/fixtures/` so stub-runs stay offline.
 
-Place unpacked directories (or tar archives) on local disk or S3 and pass them as `--metaphlan_db` / `--host_index`. TreeTopFlow hosted copies at `refdb.treetopunder.com` will be wired as defaults once uploaded.
+| Resource | Default S3 prefix | HTTPS mirror | Contents |
+|---|---|---|---|
+| MetaPhlAn 4 (`mpa_vJun23_CHOCOPhlAnSGB_202403`) | `s3://codonyat/refdb/public/metaphlan4/mpa_vJun23_CHOCOPhlAnSGB_202403` | https://refdb.treetopunder.com/metaphlan4/mpa_vJun23_CHOCOPhlAnSGB_202403/ | Flat unpacked dir: `mpa_vJun23_CHOCOPhlAnSGB_202403.pkl`, `.{1,2,3,4,rev.1,rev.2}.bt2l`, `mpa_vJun23_CHOCOPhlAnSGB_202403.nwk`, `mpa_latest`, etc. |
+| Host genome (`GRCh38_noalt_as`) | `s3://codonyat/refdb/public/host/GRCh38_noalt_as` | https://refdb.treetopunder.com/host/GRCh38_noalt_as/ | Unpacked dir: `GRCh38_noalt_as.{1,2,3,4}.bt2`, `GRCh38_noalt_as.rev.{1,2}.bt2` |
 
 ## Run
 
@@ -87,11 +87,11 @@ Place unpacked directories (or tar archives) on local disk or S3 and pass them a
 nextflow run . \
   --input samplesheet.csv \
   --outdir results \
-  --metaphlan_db /refs/mpa_vJun23_CHOCOPhlAnSGB_202403 \
-  --host_index /refs/GRCh38_noalt_as \
   --metadata metadata.tsv \
   -profile docker
 ```
+
+The S3 defaults above are used unless you pass `--metaphlan_db` / `--host_index`.
 
 AWS Batch (TreeTopFlow controllers pass the worker config with `-c`; do not require `--aws_queue`):
 
@@ -101,9 +101,7 @@ nextflow run . \
   -c /path/to/worker/awsbatch.config \
   -work-dir s3://bucket/work \
   --input samplesheet.csv \
-  --outdir s3://bucket/results \
-  --metaphlan_db s3://bucket/refs/mpa_vJun23_CHOCOPhlAnSGB_202403 \
-  --host_index s3://bucket/refs/GRCh38_noalt_as
+  --outdir s3://bucket/results
 ```
 
 Optional CLI overrides (`--aws_queue`, `--aws_region`, `--aws_cli_path`) are applied only when set, so they do not clobber the worker `-c` file.
