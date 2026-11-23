@@ -168,6 +168,94 @@ class PhyloseqScriptTests(unittest.TestCase):
         self.assertGreater(rds.stat().st_size, 0)
 
 
+class StrainphlanCladeSelectionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmpdir = Path(tempfile.mkdtemp(prefix="ttf-strainphlan-"))
+        self.addCleanup(shutil.rmtree, self.tmpdir, True)
+        sys.path.insert(0, str(BIN))
+        import select_strainphlan_clades as selector  # noqa: WPS433
+
+        self.selector = selector
+        self.sgb = FIXTURES / "strainphlan" / "sgb_table.tsv"
+
+    def _run(
+        self,
+        clades: str = "",
+        top_n: int = 5,
+        min_samples: int = 4,
+        table: Path | None = None,
+    ) -> tuple[str, str]:
+        summary = self.tmpdir / "strainphlan_summary.tsv"
+        clade_list = self.tmpdir / "selected_clades.txt"
+        subprocess.check_call(
+            [
+                sys.executable,
+                str(BIN / "select_strainphlan_clades.py"),
+                "--sgb-table",
+                str(table or self.sgb),
+                "--clades",
+                clades,
+                "--top-n",
+                str(top_n),
+                "--min-samples",
+                str(min_samples),
+                "--summary-out",
+                str(summary),
+                "--clades-out",
+                str(clade_list),
+            ]
+        )
+        return summary.read_text(), clade_list.read_text()
+
+    def test_explicit_clades_are_validated_and_selected(self) -> None:
+        summary, clade_list = self._run(clades="t__SGB1877, not-a-clade, t__SGB15316")
+        selected = [line for line in clade_list.splitlines() if line]
+        self.assertEqual(selected, ["t__SGB1877", "t__SGB15316"])
+        rows = [line.split("\t") for line in summary.splitlines()]
+        self.assertEqual(rows[0], self.selector.SUMMARY_HEADER)
+        by_clade = {row[0]: row for row in rows[1:]}
+        self.assertEqual(by_clade["t__SGB1877"][3], "explicit")
+        self.assertEqual(by_clade["t__SGB1877"][4], "selected")
+        self.assertEqual(by_clade["t__SGB1877"][1], "4")
+        self.assertEqual(by_clade["not-a-clade"][4], "invalid")
+        self.assertEqual(by_clade["t__SGB15316"][4], "selected")
+        self.assertNotIn("not-a-clade", selected)
+
+    def test_auto_top_n_ranks_by_prevalence_then_abundance(self) -> None:
+        summary, clade_list = self._run(top_n=2, min_samples=4)
+        selected = [line for line in clade_list.splitlines() if line]
+        self.assertEqual(selected, ["t__SGB1877", "t__SGB10068"])
+        rows = [line.split("\t") for line in summary.splitlines()[1:]]
+        by_clade = {row[0]: row for row in rows}
+        self.assertEqual(by_clade["t__SGB1877"][4], "selected")
+        self.assertEqual(by_clade["t__SGB10068"][4], "selected")
+        self.assertEqual(by_clade["t__SGB15316"][4], "below_min_samples")
+        self.assertEqual(by_clade["t__SGB17256"][4], "below_min_samples")
+        self.assertEqual(by_clade["t__SGB1877"][3], "auto")
+        extra = self._run(top_n=1, min_samples=3)
+        self.assertEqual(extra[1].splitlines(), ["t__SGB1877"])
+
+    def test_auto_zero_clades_when_below_min_samples(self) -> None:
+        summary, clade_list = self._run(top_n=5, min_samples=8)
+        self.assertEqual(clade_list, "")
+        rows = [line.split("\t") for line in summary.splitlines()]
+        self.assertEqual(rows[0], self.selector.SUMMARY_HEADER)
+        self.assertTrue(all(row[4] == "below_min_samples" for row in rows[1:]))
+        empty_table = self.tmpdir / "empty_sgb.tsv"
+        empty_table.write_text("clade_name\tsample1\n")
+        summary2, clade_list2 = self._run(min_samples=2, table=empty_table)
+        self.assertEqual(clade_list2, "")
+        self.assertEqual(summary2.splitlines()[0], "\t".join(self.selector.SUMMARY_HEADER))
+        self.assertEqual(len(summary2.splitlines()), 1)
+
+    def test_select_clades_helper_matches_cli(self) -> None:
+        stats = self.selector.read_sgb_stats(self.sgb)
+        selected, rows = self.selector.select_clades(stats, [], top_n=5, min_samples=3)
+        self.assertEqual(selected, ["t__SGB1877", "t__SGB10068", "t__SGB15316"])
+        statuses = {row[0]: row[4] for row in rows}
+        self.assertEqual(statuses["t__SGB17256"], "below_min_samples")
+
+
 class SchemaTests(unittest.TestCase):
     def test_schemas_are_valid_json_schema(self) -> None:
         try:
@@ -203,9 +291,20 @@ class SchemaTests(unittest.TestCase):
             "min_read_len",
             "skip_krona",
             "skip_phyloseq",
+            "run_strainphlan",
+            "strainphlan_clades",
+            "strainphlan_top_n",
+            "strainphlan_min_samples",
+            "strainphlan_phylophlan_mode",
         ]:
             self.assertIn(key, props)
         self.assertEqual(props["analysis_type"]["enum"], ["rel_ab_w_read_stats", "rel_ab"])
+        self.assertFalse(props["run_strainphlan"]["default"])
+        self.assertIsNone(props["strainphlan_clades"]["default"])
+        self.assertEqual(props["strainphlan_top_n"]["default"], 5)
+        self.assertEqual(props["strainphlan_min_samples"]["default"], 4)
+        self.assertEqual(props["strainphlan_phylophlan_mode"]["enum"], ["fast", "accurate"])
+        self.assertEqual(props["strainphlan_phylophlan_mode"]["default"], "fast")
         self.assertEqual(props["min_read_len"]["default"], 70)
         self.assertFalse(props["skip_host_removal"]["default"])
         self.assertTrue(props["unclassified_estimation"]["default"])
@@ -230,6 +329,8 @@ class SchemaTests(unittest.TestCase):
         )
         self.assertIn("s3://codonyat/refdb/public/host/GRCh38_noalt_as", config)
         self.assertNotIn("will be wired once uploaded", config)
+        self.assertIn("run_strainphlan", config)
+        self.assertIn("strainphlan_phylophlan_mode", config)
         test_config = (ROOT / "conf" / "test.config").read_text()
         self.assertIn("tests/fixtures/metaphlan_db", test_config)
         self.assertIn("tests/fixtures/host_index", test_config)

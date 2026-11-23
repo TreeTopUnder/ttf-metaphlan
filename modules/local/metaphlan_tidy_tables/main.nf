@@ -43,8 +43,11 @@ process METAPHLAN_TIDY_TABLES {
 
     stub:
     """
-    printf "clade_name\\tsample1\\n" > merged_species_table.tsv
-    printf "clade_name\\tsample1\\n" > merged_sgb_table.tsv
+    printf "clade_name\\tsample1\\tsample2\\n" > merged_species_table.tsv
+    printf "k__Bacteria|p__Bacteroidetes|c__Bacteroidia|o__Bacteroidales|f__Bacteroidaceae|g__Bacteroides|s__Bacteroides_fragilis\\t50.0\\t30.0\\n" >> merged_species_table.tsv
+    printf "clade_name\\tsample1\\tsample2\\n" > merged_sgb_table.tsv
+    printf "k__Bacteria|p__Bacteroidetes|c__Bacteroidia|o__Bacteroidales|f__Bacteroidaceae|g__Bacteroides|s__Bacteroides_fragilis|t__SGB1855\\t50.0\\t30.0\\n" >> merged_sgb_table.tsv
+    printf "k__Bacteria|p__Firmicutes|c__Clostridia|o__Eubacteriales|f__Oscillospiraceae|g__Faecalibacterium|s__Faecalibacterium_prausnitzii|t__SGB15316\\t40.0\\t0.0\\n" >> merged_sgb_table.tsv
     shopt -s nullglob
     logs=( *.bowtie2.log )
     if [ \${#logs[@]} -gt 0 ]; then

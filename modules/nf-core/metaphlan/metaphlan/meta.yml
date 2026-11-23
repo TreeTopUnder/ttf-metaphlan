@@ -85,10 +85,10 @@ output:
           description: |
             Groovy Map containing sample information
             e.g. [ id:'test', single_end:false ]
-      - "*.sam":
+      - "*.sam.bz2":
           type: file
-          description: SAM file produced by MetaPPhlAn of read alignments to MetaPhlAn database gene sequences
-          pattern: "*.{sam}"
+          description: bzip2-compressed SAM file of read alignments to MetaPhlAn marker sequences (StrainPhlAn 4 input)
+          pattern: "*.sam.bz2"
           ontologies: []
   versions:
     - versions.yml:

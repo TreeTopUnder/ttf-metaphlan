@@ -32,6 +32,10 @@ jobs:
         run: nextflow run . -profile test -stub-run --outdir results_host
       - name: Stub-run skipping host removal
         run: nextflow run . -profile test -stub-run --skip_host_removal true --outdir results_nohost
+      - name: Stub-run StrainPhlAn auto clade selection
+        run: nextflow run . -profile test -stub-run --run_strainphlan true --strainphlan_min_samples 2 --outdir results_strain_auto
+      - name: Stub-run StrainPhlAn explicit clade
+        run: nextflow run . -profile test -stub-run --run_strainphlan true --strainphlan_clades t__SGB1877 --outdir results_strain_explicit
       - name: Confirm expected stub outputs
         run: |
           test -f results_host/pipeline_info/software_versions.yml
@@ -52,3 +56,16 @@ jobs:
           test ! -f results_nohost/host_removal/host_removal_summary.tsv
           test -f results_nohost/metaphlan/sample1_profile.txt
           test -f results_nohost/pipeline_info/software_versions.yml
+          test ! -e results_host/strainphlan/strainphlan_summary.tsv
+          test ! -e results_host/metaphlan/sample1.sam.bz2
+          test ! -e results_strain_auto/metaphlan/sample1.sam.bz2
+          test -f results_strain_auto/strainphlan/strainphlan_summary.tsv
+          test -f results_strain_auto/strainphlan/selected_clades.txt
+          test -f results_strain_auto/strainphlan/consensus_markers/sample1.json.bz2
+          grep -qx 't__SGB1855' results_strain_auto/strainphlan/selected_clades.txt
+          test -f results_strain_auto/strainphlan/t__SGB1855/status.txt
+          test -f results_strain_explicit/strainphlan/strainphlan_summary.tsv
+          test -f results_strain_explicit/strainphlan/selected_clades.txt
+          grep -qx 't__SGB1877' results_strain_explicit/strainphlan/selected_clades.txt
+          test -f results_strain_explicit/strainphlan/t__SGB1877/status.txt
+          test -f results_strain_explicit/strainphlan/t__SGB1877/RAxML_bestTree.t__SGB1877.StrainPhlAn4.tre
