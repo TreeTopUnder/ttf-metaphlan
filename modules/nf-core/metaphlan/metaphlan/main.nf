@@ -16,7 +16,7 @@ process METAPHLAN_METAPHLAN {
     tuple val(meta), path("*_profile.txt"), emit: profile
     tuple val(meta), path("*.biom"), emit: biom
     tuple val(meta), path('*.bowtie2out.txt'), optional: true, emit: bt2out
-    tuple val(meta), path("*.sam"), optional: true, emit: sam
+    tuple val(meta), path("*.sam.bz2"), optional: true, emit: sam
     path "versions.yml", emit: versions
 
     when:
@@ -28,7 +28,7 @@ process METAPHLAN_METAPHLAN {
     def input_type = "${input}" =~ /.*\.(fastq|fq)/ ? "--input_type fastq" : "${input}" =~ /.*\.(fasta|fna|fa)/ ? "--input_type fasta" : "${input}".endsWith(".bowtie2out.txt") ? "--input_type bowtie2out" : "--input_type sam"
     def input_data = ("${input_type}".contains("fastq")) && !meta.single_end ? "${input[0]},${input[1]}" : "${input}"
     def bowtie2_out = "${input_type}" == "--input_type bowtie2out" || "${input_type}" == "--input_type sam" ? '' : "--bowtie2out ${prefix}.bowtie2out.txt"
-    def samfile_out = save_samfile ? "-s ${prefix}.sam" : ''
+    def samfile_out = save_samfile ? "-s ${prefix}.sam.bz2" : ''
     """
     BT2_DB=`find -L "${metaphlan_db_latest}" -name "*rev.1.bt2*" -exec dirname {} \\;`
     BT2_DB_INDEX=`find -L ${metaphlan_db_latest} -name "*.rev.1.bt2*" | sed 's/\\.rev.1.bt2.*\$//' | sed 's/.*\\///'`
@@ -57,11 +57,14 @@ process METAPHLAN_METAPHLAN {
     def input_type = "${input}" =~ /.*\.(fastq|fq)/ ? "--input_type fastq" : "${input}" =~ /.*\.(fasta|fna|fa)/ ? "--input_type fasta" : "${input}".endsWith(".bowtie2out.txt") ? "--input_type bowtie2out" : "--input_type sam"
     def input_data = ("${input_type}".contains("fastq")) && !meta.single_end ? "${input[0]},${input[1]}" : "${input}"
     def bowtie2_out = "${input_type}" == "--input_type bowtie2out" || "${input_type}" == "--input_type sam" ? '' : "--bowtie2out ${prefix}.bowtie2out.txt"
-    def samfile_out = save_samfile ? "-s ${prefix}.sam" : ''
+    def samfile_out = save_samfile ? "-s ${prefix}.sam.bz2" : ''
     """
     echo "${args}"
     touch ${prefix}.biom
     touch ${prefix}_profile.txt
+    if echo "${args}" | grep -q "sam.bz2" || [ "${save_samfile}" = "true" ]; then
+        touch ${prefix}.sam.bz2
+    fi
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

@@ -10,6 +10,9 @@ include { MULTIQC } from '../modules/nf-core/multiqc/main'
 include { METAPHLAN_TIDY_TABLES } from '../modules/local/metaphlan_tidy_tables/main'
 include { METAPHLAN_TO_KRONA } from '../modules/local/metaphlan_to_krona/main'
 include { BUILD_PHYLOSEQ } from '../modules/local/build_phyloseq/main'
+include { STRAINPHLAN_SAMPLE2MARKERS } from '../modules/local/strainphlan_sample2markers/main'
+include { STRAINPHLAN_SELECT_CLADES } from '../modules/local/strainphlan_select_clades/main'
+include { STRAINPHLAN_CLADE } from '../modules/local/strainphlan_clade/main'
 
 def isArchivePath(path) {
     // Unpacked dirs (local or s3://, trailing slash optional) skip UNTAR.
@@ -104,6 +107,39 @@ workflow TTF_METAPHLAN {
             ch_metaphlan_db_value
         )
         ch_versions = ch_versions.mix(BUILD_PHYLOSEQ.out.versions)
+    }
+
+    if (params.run_strainphlan) {
+        STRAINPHLAN_SAMPLE2MARKERS(
+            METAPHLAN_METAPHLAN.out.sam,
+            ch_metaphlan_db_value
+        )
+        ch_versions = ch_versions.mix(STRAINPHLAN_SAMPLE2MARKERS.out.versions)
+
+        STRAINPHLAN_SELECT_CLADES(
+            METAPHLAN_TIDY_TABLES.out.sgb,
+            params.strainphlan_clades ?: '',
+            params.strainphlan_top_n,
+            params.strainphlan_min_samples
+        )
+        ch_versions = ch_versions.mix(STRAINPHLAN_SELECT_CLADES.out.versions)
+
+        ch_consensus_markers = STRAINPHLAN_SAMPLE2MARKERS.out.markers
+            .map { _meta, marker -> marker }
+            .collect()
+
+        ch_clades = STRAINPHLAN_SELECT_CLADES.out.clade_list
+            .splitText()
+            .map { line -> line.toString().trim() }
+            .filter { line -> line }
+            .map { clade -> [id: clade] }
+
+        STRAINPHLAN_CLADE(
+            ch_clades,
+            ch_consensus_markers,
+            ch_metaphlan_db_value
+        )
+        ch_versions = ch_versions.mix(STRAINPHLAN_CLADE.out.versions)
     }
 
     if (!params.skip_krona) {

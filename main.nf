@@ -27,6 +27,11 @@ def helpMessage() {
           --min_read_len      fastp --length_required (default: 70)
           --skip_krona        Skip Krona plots (default: false)
           --skip_phyloseq     Skip phyloseq RDS (default: false)
+          --run_strainphlan   Run StrainPhlAn 4 strain-level profiling (default: false)
+          --strainphlan_clades        Optional comma-separated SGB IDs (e.g. t__SGB1877,t__SGB15316)
+          --strainphlan_top_n         Max auto-selected SGB clades (default: 5)
+          --strainphlan_min_samples   Min samples carrying an SGB for tree building (default: 4)
+          --strainphlan_phylophlan_mode  PhyloPhlAn mode: fast | accurate (default: fast)
         """.stripIndent()
     )
 }
@@ -103,6 +108,9 @@ workflow {
     }
     if (!(params.analysis_type in ['rel_ab_w_read_stats', 'rel_ab'])) {
         error "Parameter --analysis_type must be one of: rel_ab_w_read_stats, rel_ab"
+    }
+    if (!(params.strainphlan_phylophlan_mode in ['fast', 'accurate'])) {
+        error "Parameter --strainphlan_phylophlan_mode must be one of: fast, accurate"
     }
 
     ch_input = Channel

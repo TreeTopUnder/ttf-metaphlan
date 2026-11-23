@@ -4,7 +4,7 @@ Shotgun Taxonomic Profiling (MetaPhlAn 4) — a lean Nextflow DSL2 pipeline for 
 
 **Research use only. Not for clinical or diagnostic use.**
 
-Version `0.1.0` profiles Illumina shotgun metagenomes with MetaPhlAn 4 only: fastp QC/trimming, optional Bowtie2 host removal, MetaPhlAn 4 taxonomic profiling, merged/tidy tables, optional phyloseq RDS and Krona plots, and MultiQC.
+Version `0.1.0` profiles Illumina shotgun metagenomes with MetaPhlAn 4: fastp QC/trimming, optional Bowtie2 host removal, MetaPhlAn 4 taxonomic profiling, merged/tidy tables, optional phyloseq RDS and Krona plots, MultiQC, and optional StrainPhlAn 4 strain-level trees (`--run_strainphlan`, off by default).
 
 ## Inputs
 
@@ -44,6 +44,11 @@ SAMPLE_SE	treatment	1
 | `--min_read_len` | `70` | fastp `--length_required` |
 | `--skip_krona` | `false` | Skip Krona plots |
 | `--skip_phyloseq` | `false` | Skip phyloseq RDS |
+| `--run_strainphlan` | `false` | Run StrainPhlAn 4 end-to-end (research use only). Default taxonomic runs stay lean/fast |
+| `--strainphlan_clades` | `null` | Optional comma-separated SGB clade IDs (`t__SGB1877,t__SGB15316`). If unset, auto-selects top shared SGBs |
+| `--strainphlan_top_n` | `5` | Max auto-selected SGB clades when `--strainphlan_clades` is unset (bounds Batch compute cost) |
+| `--strainphlan_min_samples` | `4` | Minimum samples carrying an SGB clade for StrainPhlAn tree building. Small cohorts never fail the pipeline; they emit an empty clade list |
+| `--strainphlan_phylophlan_mode` | `fast` | PhyloPhlAn preset for StrainPhlAn (`fast` or `accurate`) |
 
 Host indexes and MetaPhlAn databases may be an unpacked directory (local or `s3://`, trailing slash optional) or a `.tar` / `.tar.gz` archive (unpacked with `nf-core/untar`). Unpacked directories skip `UNTAR` and are staged as directory channels so MetaPhlAn, Bowtie2, and phyloseq see the index files (including `*.nwk` for `phy_tree`).
 
@@ -66,11 +71,20 @@ outdir/
   multiqc/multiqc_report.html
   multiqc/multiqc_data/multiqc_general_stats.txt
   pipeline_info/software_versions.yml
+  strainphlan/consensus_markers/*.json.bz2   # when --run_strainphlan
+  strainphlan/strainphlan_summary.tsv        # when --run_strainphlan
+  strainphlan/selected_clades.txt            # when --run_strainphlan
+  strainphlan/<clade>/RAxML_bestTree.*.tre   # when a clade passes StrainPhlAn QC
+  strainphlan/<clade>/*.aln
+  strainphlan/<clade>/*.info
+  strainphlan/<clade>/status.txt
 ```
 
 Host-aligned BAMs and host reads are **never** published. Only unmapped reads continue to MetaPhlAn.
 
 `merged_species_table.tsv` is the `s__` level (excluding `t__`). `merged_sgb_table.tsv` is the SGB `t__` level. Phyloseq uses SGB abundances when present, with taxonomy ranks Kingdom through SGB, optional `sample_data`, and optional `phy_tree` if an SGB `.nwk` file is inside `--metaphlan_db`.
+
+When `--run_strainphlan` is true, MetaPhlAn writes compressed SAM alignments (`*.sam.bz2`) in the work directory only — they are **not** published. `sample2markers.py` (MetaPhlAn 4.1.1) turns those SAMs into reusable consensus markers (`*.json.bz2`, published under `strainphlan/consensus_markers/`). Clades are either the explicit `--strainphlan_clades` list or up to `--strainphlan_top_n` SGBs present in at least `--strainphlan_min_samples` samples, ranked by prevalence then mean relative abundance. Each selected clade runs `extract_markers.py` + `strainphlan` in the same `biocontainers/metaphlan:4.1.1--pyhdfd78af_0` image. If a clade has too few markers/samples for StrainPhlAn internal QC, that clade writes `status.txt` and the rest of the pipeline continues. A cohort smaller than `--strainphlan_min_samples` with no explicit clades produces an empty `selected_clades.txt` rather than failing.
 
 ## Reference databases
 
@@ -111,6 +125,8 @@ Stub-run (DAG compile, no containers required):
 ```bash
 nextflow run . -profile test -stub-run --outdir results_host
 nextflow run . -profile test -stub-run --skip_host_removal true --outdir results_nohost
+nextflow run . -profile test -stub-run --run_strainphlan true --strainphlan_min_samples 2 --outdir results_strain_auto
+nextflow run . -profile test -stub-run --run_strainphlan true --strainphlan_clades t__SGB1877 --outdir results_strain_explicit
 ```
 
 Helper-script tests:
@@ -126,12 +142,14 @@ Standard `nf-core/modules` (see `modules.json`):
 - `nf-core/fastp`
 - `nf-core/bowtie2/align` (`save_unaligned = true`)
 - `nf-core/untar`
-- `nf-core/metaphlan/metaphlan` (container `metaphlan=4.1.1`)
+- `nf-core/metaphlan/metaphlan` (container `biocontainers/metaphlan:4.1.1--pyhdfd78af_0`; optional `-s *.sam.bz2` when `--run_strainphlan`)
 - `nf-core/metaphlan/mergemetaphlantables`
 - `nf-core/krona/ktimporttext`
 - `nf-core/multiqc`
 
-Local modules: `METAPHLAN_TIDY_TABLES`, `METAPHLAN_TO_KRONA`, `BUILD_PHYLOSEQ`.
+There is no `nf-core/modules` StrainPhlAn process; local modules reuse the same MetaPhlAn 4.1.1 BioContainer: `STRAINPHLAN_SAMPLE2MARKERS`, `STRAINPHLAN_SELECT_CLADES`, `STRAINPHLAN_CLADE`.
+
+Local helper modules: `METAPHLAN_TIDY_TABLES`, `METAPHLAN_TO_KRONA`, `BUILD_PHYLOSEQ`.
 
 ## License
 

@@ -115,11 +115,54 @@
                     "fa_icon": "fas fa-ban"
                 }
             }
+        },
+        "strainphlan_options": {
+            "title": "StrainPhlAn 4 options",
+            "type": "object",
+            "fa_icon": "fas fa-project-diagram",
+            "description": "Optional StrainPhlAn 4 strain-level profiling (research use only). Off by default so taxonomic runs stay lean. Uses the MetaPhlAn 4.1.1 BioContainer and mpa_vJun23_CHOCOPhlAnSGB_202403 database.",
+            "properties": {
+                "run_strainphlan": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Run StrainPhlAn 4 end-to-end after MetaPhlAn profiling. Default taxonomic runs stay lean/fast. Research use only; not for clinical or diagnostic use.",
+                    "fa_icon": "fas fa-dna"
+                },
+                "strainphlan_clades": {
+                    "type": "string",
+                    "default": null,
+                    "description": "Optional comma-separated SGB clade IDs (e.g. t__SGB1877,t__SGB15316). If unset, auto-selects top shared SGBs.",
+                    "help_text": "Each ID must look like t__SGB followed by digits (MetaPhlAn 4 SGB tokens). Leave unset/null to rank SGBs from merged_sgb_table.tsv by sample prevalence then mean relative abundance.",
+                    "fa_icon": "fas fa-list"
+                },
+                "strainphlan_top_n": {
+                    "type": "integer",
+                    "default": 5,
+                    "minimum": 0,
+                    "description": "Maximum auto-selected SGB clades when --strainphlan_clades is unset. Bounds AWS Batch compute cost.",
+                    "fa_icon": "fas fa-sort-numeric-up"
+                },
+                "strainphlan_min_samples": {
+                    "type": "integer",
+                    "default": 4,
+                    "minimum": 1,
+                    "description": "Minimum samples carrying an SGB clade (abundance > 0) for StrainPhlAn tree building. Small cohorts below this never fail the pipeline; they emit an empty clade list.",
+                    "fa_icon": "fas fa-users"
+                },
+                "strainphlan_phylophlan_mode": {
+                    "type": "string",
+                    "default": "fast",
+                    "enum": ["fast", "accurate"],
+                    "description": "PhyloPhlAn preset passed to strainphlan --phylophlan_mode.",
+                    "fa_icon": "fas fa-tachometer-alt"
+                }
+            }
         }
     },
     "allOf": [
         { "$ref": "#/$defs/input_output_options" },
         { "$ref": "#/$defs/reference_options" },
-        { "$ref": "#/$defs/analysis_options" }
+        { "$ref": "#/$defs/analysis_options" },
+        { "$ref": "#/$defs/strainphlan_options" }
     ]
 }
