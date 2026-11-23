@@ -1,0 +1,4 @@
+#!/bin/bash
+echo "samtools 1.21"
+echo "Using htslib 1.21"
+exit 0

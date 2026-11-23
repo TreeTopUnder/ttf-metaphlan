@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "KronaTools 2.8.1 - ktImportText"
+exit 0
