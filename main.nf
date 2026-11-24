@@ -89,6 +89,10 @@ def createFastqChannel(LinkedHashMap row) {
 }
 
 workflow {
+    workflow.onComplete = {
+        log.info(workflow.success ? "ttf-metaphlan completed successfully (research use only)" : "ttf-metaphlan failed")
+    }
+
     if (params.help) {
         helpMessage()
         exit 0
@@ -138,6 +142,3 @@ workflow {
     )
 }
 
-workflow.onComplete {
-    log.info(workflow.success ? "ttf-metaphlan completed successfully (research use only)" : "ttf-metaphlan failed")
-}
